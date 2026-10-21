@@ -1,0 +1,189 @@
+{
+  "name": "A/B Split Testing - Chat Prompts",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Keep the same prompt variant for the same chat session.\n// This deterministic assignment avoids needing an external database.\nconst input = $input.first().json;\nconst sessionId = String(input.sessionId ?? input.chatSessionId ?? 'default-session');\nlet hash = 0;\nfor (let i = 0; i < sessionId.length; i++) {\n  hash = ((hash << 5) - hash + sessionId.charCodeAt(i)) | 0;\n}\nconst showAlternative = (Math.abs(hash) % 2) === 1;\n\nreturn [{\n  json: {\n    ...input,\n    sessionId,\n    show_alternative: showAlternative,\n    variant: showAlternative ? 'alternative' : 'baseline',\n    prompt: showAlternative\n      ? 'You are a helpful assistant. Give short answers'\n      : 'You are a helpful assistant. Give clear, structured answers with a brief explanation and actionable steps.'\n  }\n}];"
+      },
+      "id": "19e77ec8-bfd1-4689-acae-a42488974299",
+      "name": "Assign A/B Prompt Variant",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## A/B Split Testing \nThe Chat Trigger receives a message. The Code node assigns a prompt variant deterministically from the chat session ID, so a session keeps the same variant across messages. The AI Agent uses that prompt.**Before testing:** select your own OpenAI credentials in the OpenAI Chat Model node.\n**Note:** this simplified version does not store analytics or session assignments in Supabase.",
+        "height": 260,
+        "width": 460
+      },
+      "id": "46b8711f-08ff-42c5-84ab-f4011d87d7e2",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "3fbeec05-a3bb-43b7-91e5-408a85b56128",
+      "name": "When chat message received1",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d64e3522-ea04-4fba-ab9f-71a594bb652a"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "={{ $json.prompt }}"
+        }
+      },
+      "id": "7c43c0ec-ee5d-47cd-a392-01a67cf6e88b",
+      "name": "AI Agent1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        608,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "e665f9e5-9463-472b-b714-f99766901448",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        592,
+        224
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "allam-2-7b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -144
+      ],
+      "id": "ef5cc248-0486-49c9-b4ef-437b0c5f2b6a",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "ffdWNEHM6DHbkSWS",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "={{ $json.prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        608,
+        -400
+      ],
+      "id": "bbe55e86-c745-444e-8c19-f131beffb8f8",
+      "name": "AI Agent"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Assign A/B Prompt Variant": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received1": {
+      "main": [
+        [
+          {
+            "node": "Assign A/B Prompt Variant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4b6ebe55-ee95-44aa-abcc-b40bfbc04430",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2f61d465af338f56a8250118e52af3786dee237e41c5b2bbeb8d9bbbeedabd5e"
+  },
+  "nodeGroups": [],
+  "id": "JcHWIJWN6zCTLohN",
+  "tags": []
+}
